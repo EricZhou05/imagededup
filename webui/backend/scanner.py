@@ -82,8 +82,8 @@ class WebUIScanner:
             # 4. 寻找重复项
             self.state.status = "clustering"
             if method_name.lower() == "cnn":
-                # 显式传 num_enc_workers=0 避免 warnings.warn("Parameter num_enc_workers has no effect since encodings are already provided")
-                duplicates = model.find_duplicates(encoding_map=encoding_map, min_similarity_threshold=threshold, num_enc_workers=0)
+                # 已经手动提取了 encoding_map，此时 find_duplicates 不应传递编码相关的参数以避免警告
+                duplicates = model.find_duplicates(encoding_map=encoding_map, min_similarity_threshold=threshold)
             else:
                 # Hashing 方法使用的是 max_distance_threshold
                 max_dist = int(64 * (1 - threshold))

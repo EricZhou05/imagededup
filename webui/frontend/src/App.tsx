@@ -134,7 +134,7 @@ function App() {
   const [results, setResults] = useState<Cluster[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [innerIndex, setInnerIndex] = useState(0); // 组内当前图片索引
-  const [keeps, setKeeps] = useState<Record<number, string[]>>({}); // clusterId -> keepPaths[]
+  const [deletes, setDeletes] = useState<Record<number, string[]>>({}); // clusterId -> deletePaths[]
   const [destination, setDestination] = useState('');
   
   // 缩放状态
@@ -177,15 +177,15 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentCluster, currentIndex, innerIndex, results, keeps]);
+  }, [currentCluster, currentIndex, innerIndex, results, deletes]);
 
   const handleToggleSelect = (path: string) => {
-    setKeeps(prev => {
-      const currentKeeps = prev[currentCluster.id] || [];
-      if (currentKeeps.includes(path)) {
-        return { ...prev, [currentCluster.id]: currentKeeps.filter(p => p !== path) };
+    setDeletes(prev => {
+      const currentDeletes = prev[currentCluster.id] || [];
+      if (currentDeletes.includes(path)) {
+        return { ...prev, [currentCluster.id]: currentDeletes.filter(p => p !== path) };
       } else {
-        return { ...prev, [currentCluster.id]: [...currentKeeps, path] };
+        return { ...prev, [currentCluster.id]: [...currentDeletes, path] };
       }
     });
   };
@@ -242,10 +242,15 @@ function App() {
     const res = await fetch('/api/results');
     const data = await res.json();
     setResults(data);
-    const newKeeps: Record<number, string[]> = {};
-    // 默认保留第一个
-    data.forEach((c: Cluster) => { newKeeps[c.id] = [c.items[0].path]; });
-    setKeeps(newKeeps);
+    const newDeletes: Record<number, string[]> = {};
+    // 默认勾选最小大小的唯一一张图片
+    data.forEach((c: Cluster) => { 
+      const smallest = c.items.reduce((prev, curr) => 
+        prev.size_bytes < curr.size_bytes ? prev : curr
+      );
+      newDeletes[c.id] = [smallest.path]; 
+    });
+    setDeletes(newDeletes);
   };
 
   useEffect(() => {
@@ -268,12 +273,8 @@ function App() {
     if (!destination) return alert('请输入目标备份目录');
     const toMove: string[] = [];
     results.forEach(cluster => {
-      const keptPaths = keeps[cluster.id] || [];
-      cluster.items.forEach(item => { 
-        if (!keptPaths.includes(item.path)) {
-          toMove.push(item.path); 
-        }
-      });
+      const deletePaths = deletes[cluster.id] || [];
+      toMove.push(...deletePaths);
     });
     if (toMove.length === 0) return alert('没有需要移动的文件');
     if (!confirm(`确定移动 ${toMove.length} 个文件吗？`)) return;
@@ -346,15 +347,15 @@ function App() {
                 <div className="action-divider" />
                 <h3>当前组控制</h3>
                 <div className="selection-stats">
-                  已选 {keeps[currentCluster.id]?.length || 0} / {currentCluster.items.length}
+                  待删除 {deletes[currentCluster.id]?.length || 0} / {currentCluster.items.length}
                 </div>
                 
                 <button 
-                  className={`btn-sidebar-action btn-keep-toggle ${keeps[currentCluster.id]?.includes(currentItem.path) ? 'active' : ''}`}
+                  className={`btn-sidebar-action btn-delete-toggle ${deletes[currentCluster.id]?.includes(currentItem.path) ? 'active' : ''}`}
                   onClick={() => handleToggleSelect(currentItem.path)}
                 >
                   <CheckCircle2 size={18} /> 
-                  {keeps[currentCluster.id]?.includes(currentItem.path) ? '取消保留' : '勾选保留'}
+                  {deletes[currentCluster.id]?.includes(currentItem.path) ? '取消删除' : '勾选删除'}
                 </button>
 
                 <div className="nav-buttons">
@@ -389,12 +390,12 @@ function App() {
               <div className="shortcut-hint">
                 <span><span className="shortcut-key">←/→</span> 组内切换</span>
                 <span><span className="shortcut-key">↑/↓</span> 上下组</span>
-                <span><span className="shortcut-key">Space/Enter</span> 勾选保留</span>
+                <span><span className="shortcut-key">Space/Enter</span> 勾选删除</span>
               </div>
             </header>
 
             <div className="compare-viewport single-mode">
-              <div className={`compare-item-v2 ${keeps[currentCluster.id]?.includes(currentItem.path) ? 'selected' : ''}`}>
+              <div className={`compare-item-v2 ${deletes[currentCluster.id]?.includes(currentItem.path) ? 'selected' : ''}`}>
                 <ImageCanvas 
                   src={`/api/image?path=${encodeURIComponent(currentItem.path)}`} 
                   scale={transform.scale}
@@ -424,11 +425,11 @@ function App() {
                     {currentCluster.items.map((item, idx) => (
                       <div 
                         key={idx} 
-                        className={`thumb-item ${idx === innerIndex ? 'active' : ''} ${keeps[currentCluster.id]?.includes(item.path) ? 'kept' : ''}`}
+                        className={`thumb-item ${idx === innerIndex ? 'active' : ''} ${deletes[currentCluster.id]?.includes(item.path) ? 'delete-marked' : ''}`}
                         onClick={() => setInnerIndex(idx)}
                       >
                         <img src={`/api/image?path=${encodeURIComponent(item.path)}`} alt="thumb" />
-                        {keeps[currentCluster.id]?.includes(item.path) && <div className="kept-dot" />}
+                        {deletes[currentCluster.id]?.includes(item.path) && <div className="delete-dot" />}
                       </div>
                     ))}
                   </div>
