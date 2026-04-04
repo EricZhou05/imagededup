@@ -133,7 +133,8 @@ function App() {
   
   const [results, setResults] = useState<Cluster[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [keeps, setKeeps] = useState<Record<number, string>>({}); // clusterId -> keepPath
+  const [innerIndex, setInnerIndex] = useState(0); // 组内当前图片索引
+  const [keeps, setKeeps] = useState<Record<number, string[]>>({}); // clusterId -> keepPaths[]
   const [destination, setDestination] = useState('');
   
   // 缩放状态
@@ -147,38 +148,52 @@ function App() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!currentCluster) return;
       
-      // 数字键 1, 2, 3... 选择
+      // 数字键 1, 2, 3... 选择 (针对当前显示的图片进行切换选中)
       if (e.key >= '1' && e.key <= '9') {
         const idx = parseInt(e.key) - 1;
         if (idx < currentCluster.items.length) {
-          handleSelect(currentCluster.items[idx].path);
+          setInnerIndex(idx);
         }
       }
-      // 方向键切换
-      if (e.key === 'ArrowRight') nextCluster();
-      if (e.key === 'ArrowLeft') prevCluster();
-      // 空格跳过
-      if (e.key === ' ') nextCluster();
+
+      // 左右方向键：切换组内图片 (闪烁对比)
+      if (e.key === 'ArrowRight') {
+        setInnerIndex(prev => (prev + 1) % currentCluster.items.length);
+      }
+      if (e.key === 'ArrowLeft') {
+        setInnerIndex(prev => (prev - 1 + currentCluster.items.length) % currentCluster.items.length);
+      }
+
+      // 上下方向键：切换重复组
+      if (e.key === 'ArrowDown') nextCluster();
+      if (e.key === 'ArrowUp') prevCluster();
+
+      // 回车或空格：切换当前图片的选中状态
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        handleToggleSelect(currentCluster.items[innerIndex].path);
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentCluster, currentIndex, results]);
+  }, [currentCluster, currentIndex, innerIndex, results, keeps]);
 
-  const handleSelect = (path: string) => {
-    setKeeps(prev => ({ ...prev, [currentCluster.id]: path }));
-    // 自动跳转下一组 (延迟一下让用户看到选中效果)
-    setTimeout(() => {
-      if (currentIndex < results.length - 1) {
-        setCurrentIndex(prev => prev + 1);
-        setTransform({ scale: 1, offset: { x: 0, y: 0 } }); // 重置缩放
+  const handleToggleSelect = (path: string) => {
+    setKeeps(prev => {
+      const currentKeeps = prev[currentCluster.id] || [];
+      if (currentKeeps.includes(path)) {
+        return { ...prev, [currentCluster.id]: currentKeeps.filter(p => p !== path) };
+      } else {
+        return { ...prev, [currentCluster.id]: [...currentKeeps, path] };
       }
-    }, 300);
+    });
   };
 
   const nextCluster = () => {
     if (currentIndex < results.length - 1) {
       setCurrentIndex(prev => prev + 1);
+      setInnerIndex(0);
       setTransform({ scale: 1, offset: { x: 0, y: 0 } });
     }
   };
@@ -186,6 +201,7 @@ function App() {
   const prevCluster = () => {
     if (currentIndex > 0) {
       setCurrentIndex(prev => prev - 1);
+      setInnerIndex(0);
       setTransform({ scale: 1, offset: { x: 0, y: 0 } });
     }
   };
@@ -209,6 +225,7 @@ function App() {
   const startScan = async () => {
     setResults([]);
     setCurrentIndex(0);
+    setInnerIndex(0);
     const dirs = directories.split('\n').filter(d => d.trim());
     if (dirs.length === 0) return alert('请输入至少一个目录');
     
@@ -225,8 +242,9 @@ function App() {
     const res = await fetch('/api/results');
     const data = await res.json();
     setResults(data);
-    const newKeeps: Record<number, string> = {};
-    data.forEach((c: Cluster) => { newKeeps[c.id] = c.items[0].path; });
+    const newKeeps: Record<number, string[]> = {};
+    // 默认保留第一个
+    data.forEach((c: Cluster) => { newKeeps[c.id] = [c.items[0].path]; });
     setKeeps(newKeeps);
   };
 
@@ -250,8 +268,12 @@ function App() {
     if (!destination) return alert('请输入目标备份目录');
     const toMove: string[] = [];
     results.forEach(cluster => {
-      const keep = keeps[cluster.id];
-      cluster.items.forEach(item => { if (item.path !== keep) toMove.push(item.path); });
+      const keptPaths = keeps[cluster.id] || [];
+      cluster.items.forEach(item => { 
+        if (!keptPaths.includes(item.path)) {
+          toMove.push(item.path); 
+        }
+      });
     });
     if (toMove.length === 0) return alert('没有需要移动的文件');
     if (!confirm(`确定移动 ${toMove.length} 个文件吗？`)) return;
@@ -274,6 +296,8 @@ function App() {
       res: Math.min(...currentCluster.items.map(i => i.width * i.height))
     };
   }, [currentCluster]);
+
+  const currentItem = currentCluster?.items[innerIndex];
 
   return (
     <div className="app-container">
@@ -333,58 +357,82 @@ function App() {
           <div className="feed-view">
             <header className="feed-header">
               <div className="feed-progress">
-                组 {currentIndex + 1} / {results.length}
+                组 {currentIndex + 1} / {results.length} | 图片 {innerIndex + 1} / {currentCluster.items.length}
               </div>
               <div className="shortcut-hint">
-                <span><span className="shortcut-key">1-{currentCluster.items.length}</span> 选择</span>
-                <span><span className="shortcut-key">Space</span> 下一组</span>
+                <span><span className="shortcut-key">←/→</span> 组内切换</span>
+                <span><span className="shortcut-key">↑/↓</span> 上下组</span>
+                <span><span className="shortcut-key">Space/Enter</span> 勾选保留</span>
                 <span><span className="shortcut-key">滚轮</span> 缩放</span>
-                <span><span className="shortcut-key">拖拽</span> 移动</span>
               </div>
             </header>
 
-            <div className="compare-viewport">
-              {currentCluster.items.map((item, idx) => (
-                <div key={idx} className={`compare-item-v2 ${keeps[currentCluster.id] === item.path ? 'selected' : ''}`}>
-                  <div className="item-badge">图片 {idx + 1}</div>
-                  <ImageCanvas 
-                    src={`/api/image?path=${encodeURIComponent(item.path)}`} 
-                    scale={transform.scale}
-                    offset={transform.offset}
-                    onTransform={(s: number, o: any) => setTransform({ scale: s, offset: o })}
-                  />
-                  <div className="meta-panel-v2">
-                    <div className={`meta-item ${item.width * item.height === minStats.res ? 'danger' : ''}`}>
-                      <span className="label">分辨率</span>
-                      <span className="value">{item.resolution}</span>
-                    </div>
-                    <div className={`meta-item ${item.size_bytes === minStats.size ? 'danger' : ''}`}>
-                      <span className="label">大小</span>
-                      <span className="value">{item.size_human}</span>
-                    </div>
-                    <div className="meta-item">
-                      <span className="label">路径</span>
-                      <div className="value">
-                        <HighlightPath path={item.path} allPaths={currentCluster.items.map(i => i.path)} />
-                      </div>
-                    </div>
-                    <button 
-                      className={`btn-keep-v2 ${keeps[currentCluster.id] === item.path ? 'active' : ''}`}
-                      onClick={() => handleSelect(item.path)}
-                    >
-                      <CheckCircle2 size={16} /> {keeps[currentCluster.id] === item.path ? '已保留' : `选择 (快捷键 ${idx+1})`}
-                    </button>
-                  </div>
+            <div className="compare-viewport single-mode">
+              <div className={`compare-item-v2 ${keeps[currentCluster.id]?.includes(currentItem.path) ? 'selected' : ''}`}>
+                <div className="item-badge">
+                  {innerIndex + 1} / {currentCluster.items.length} 
+                  {keeps[currentCluster.id]?.includes(currentItem.path) && <span style={{marginLeft: '8px', color: '#10b981'}}>✓ 已选中保留</span>}
                 </div>
-              ))}
+                
+                <ImageCanvas 
+                  src={`/api/image?path=${encodeURIComponent(currentItem.path)}`} 
+                  scale={transform.scale}
+                  offset={transform.offset}
+                  onTransform={(s: number, o: any) => setTransform({ scale: s, offset: o })}
+                />
+
+                <div className="meta-panel-v2">
+                  <div className="meta-grid">
+                    <div className={`meta-item ${currentItem.width * currentItem.height === minStats.res ? 'danger' : ''}`}>
+                      <span className="label">分辨率</span>
+                      <span className="value">{currentItem.resolution}</span>
+                    </div>
+                    <div className={`meta-item ${currentItem.size_bytes === minStats.size ? 'danger' : ''}`}>
+                      <span className="label">大小</span>
+                      <span className="value">{currentItem.size_human}</span>
+                    </div>
+                  </div>
+                  <div className="meta-item path-item">
+                    <span className="label">路径</span>
+                    <div className="value">
+                      <HighlightPath path={currentItem.path} allPaths={currentCluster.items.map(i => i.path)} />
+                    </div>
+                  </div>
+                  
+                  <div className="cluster-thumbnails">
+                    {currentCluster.items.map((item, idx) => (
+                      <div 
+                        key={idx} 
+                        className={`thumb-item ${idx === innerIndex ? 'active' : ''} ${keeps[currentCluster.id]?.includes(item.path) ? 'kept' : ''}`}
+                        onClick={() => setInnerIndex(idx)}
+                      >
+                        <img src={`/api/image?path=${encodeURIComponent(item.path)}`} alt="thumb" />
+                        {keeps[currentCluster.id]?.includes(item.path) && <div className="kept-dot" />}
+                      </div>
+                    ))}
+                  </div>
+
+                  <button 
+                    className={`btn-keep-v2 ${keeps[currentCluster.id]?.includes(currentItem.path) ? 'active' : ''}`}
+                    onClick={() => handleToggleSelect(currentItem.path)}
+                    style={{ width: '100%', marginTop: '1rem' }}
+                  >
+                    <CheckCircle2 size={16} /> 
+                    {keeps[currentCluster.id]?.includes(currentItem.path) ? '保留此图片' : '暂不保留'} (Space/Enter)
+                  </button>
+                </div>
+              </div>
             </div>
 
             <footer className="action-bar">
               <button className="btn-keep-v2" onClick={prevCluster} disabled={currentIndex === 0}>
-                <ChevronLeft size={20} /> 上一组
+                <ChevronLeft size={20} /> 上一组 (↑)
               </button>
+              <div className="selection-summary">
+                已选 {keeps[currentCluster.id]?.length || 0} / {currentCluster.items.length}
+              </div>
               <button className="btn-keep-v2 btn-next" onClick={nextCluster}>
-                跳过此组 / 下一组 <ChevronRight size={20} />
+                下一组 (↓) <ChevronRight size={20} />
               </button>
             </footer>
           </div>

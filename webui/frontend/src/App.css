@@ -219,33 +219,91 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   margin-right: 0.2rem;
 }
 
-.compare-viewport {
-  flex: 1;
-  display: flex;
-  gap: 1rem;
-  overflow-x: auto; /* 支持多图横向滚动 */
-  overflow-y: hidden;
-  background-color: #000;
-  border-radius: 0.5rem;
-  position: relative;
-  padding: 0.5rem;
-}
-
-.compare-item-v2 {
-  flex: 1;
-  min-width: 350px; /* 保证图片不会被挤压得太厉害 */
-  display: flex;
-  flex-direction: column;
-  border: 2px solid #1e293b;
-  border-radius: 0.5rem;
+.compare-viewport.single-mode {
+  display: block;
   overflow: hidden;
-  background: #1e293b;
-  position: relative;
+  padding: 0;
 }
 
-.compare-item-v2.selected {
+.compare-viewport.single-mode .compare-item-v2 {
+  height: 100%;
+  min-width: unset;
+  border: none;
+  background: transparent;
+}
+
+.meta-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.path-item {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #334155;
+}
+
+/* 缩略图栏 */
+.cluster-thumbnails {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding: 0.5rem;
+  background: #0f172a;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+}
+
+.thumb-item {
+  width: 60px;
+  height: 60px;
+  border-radius: 0.25rem;
+  overflow: hidden;
+  cursor: pointer;
+  border: 2px solid transparent;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.thumb-item.active {
   border-color: #3b82f6;
-  box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+}
+
+.thumb-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.6;
+}
+
+.thumb-item.active img {
+  opacity: 1;
+}
+
+.kept-dot {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 8px;
+  height: 8px;
+  background: #10b981;
+  border-radius: 50%;
+  box-shadow: 0 0 4px rgba(0,0,0,0.5);
+}
+
+.selection-summary {
+  display: flex;
+  align-items: center;
+  font-size: 0.875rem;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.shortcut-hint span {
+  display: flex;
+  align-items: center;
 }
 
 .image-canvas-container {
@@ -253,11 +311,13 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   overflow: hidden;
   cursor: grab;
   position: relative;
+  background-color: #000;
+  /* 网格背景改为深色调 */
   background-image: 
-    linear-gradient(45deg, #111 25%, transparent 25%),
-    linear-gradient(-45deg, #111 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #111 75%),
-    linear-gradient(-45deg, transparent 75%, #111 75%);
+    linear-gradient(45deg, #0a0a0a 25%, transparent 25%),
+    linear-gradient(-45deg, #0a0a0a 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #0a0a0a 75%),
+    linear-gradient(-45deg, transparent 75%, #0a0a0a 75%);
   background-size: 20px 20px;
   background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
 }
