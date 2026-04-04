@@ -337,9 +337,36 @@ function App() {
               <label>备份至</label>
               <input type="text" value={destination} onChange={e => setDestination(e.target.value)} placeholder="D:\Backup" />
             </div>
-            <button className="btn-danger" onClick={handleMove}>
+            <button className="btn-danger" onClick={handleMove} style={{ marginBottom: '1rem' }}>
               <ArrowRightLeft size={18} /> 执行移动
             </button>
+
+            {currentCluster && (
+              <div className="current-actions">
+                <div className="action-divider" />
+                <h3>当前组控制</h3>
+                <div className="selection-stats">
+                  已选 {keeps[currentCluster.id]?.length || 0} / {currentCluster.items.length}
+                </div>
+                
+                <button 
+                  className={`btn-sidebar-action btn-keep-toggle ${keeps[currentCluster.id]?.includes(currentItem.path) ? 'active' : ''}`}
+                  onClick={() => handleToggleSelect(currentItem.path)}
+                >
+                  <CheckCircle2 size={18} /> 
+                  {keeps[currentCluster.id]?.includes(currentItem.path) ? '取消保留' : '勾选保留'}
+                </button>
+
+                <div className="nav-buttons">
+                  <button className="btn-sidebar-nav" onClick={prevCluster} disabled={currentIndex === 0}>
+                    <ChevronLeft size={18} /> 上一组
+                  </button>
+                  <button className="btn-sidebar-nav btn-next-sidebar" onClick={nextCluster}>
+                    下一组 <ChevronRight size={18} />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </aside>
@@ -363,17 +390,11 @@ function App() {
                 <span><span className="shortcut-key">←/→</span> 组内切换</span>
                 <span><span className="shortcut-key">↑/↓</span> 上下组</span>
                 <span><span className="shortcut-key">Space/Enter</span> 勾选保留</span>
-                <span><span className="shortcut-key">滚轮</span> 缩放</span>
               </div>
             </header>
 
             <div className="compare-viewport single-mode">
               <div className={`compare-item-v2 ${keeps[currentCluster.id]?.includes(currentItem.path) ? 'selected' : ''}`}>
-                <div className="item-badge">
-                  {innerIndex + 1} / {currentCluster.items.length} 
-                  {keeps[currentCluster.id]?.includes(currentItem.path) && <span style={{marginLeft: '8px', color: '#10b981'}}>✓ 已选中保留</span>}
-                </div>
-                
                 <ImageCanvas 
                   src={`/api/image?path=${encodeURIComponent(currentItem.path)}`} 
                   scale={transform.scale}
@@ -411,30 +432,9 @@ function App() {
                       </div>
                     ))}
                   </div>
-
-                  <button 
-                    className={`btn-keep-v2 ${keeps[currentCluster.id]?.includes(currentItem.path) ? 'active' : ''}`}
-                    onClick={() => handleToggleSelect(currentItem.path)}
-                    style={{ width: '100%', marginTop: '1rem' }}
-                  >
-                    <CheckCircle2 size={16} /> 
-                    {keeps[currentCluster.id]?.includes(currentItem.path) ? '保留此图片' : '暂不保留'} (Space/Enter)
-                  </button>
                 </div>
               </div>
             </div>
-
-            <footer className="action-bar">
-              <button className="btn-keep-v2" onClick={prevCluster} disabled={currentIndex === 0}>
-                <ChevronLeft size={20} /> 上一组 (↑)
-              </button>
-              <div className="selection-summary">
-                已选 {keeps[currentCluster.id]?.length || 0} / {currentCluster.items.length}
-              </div>
-              <button className="btn-keep-v2 btn-next" onClick={nextCluster}>
-                下一组 (↓) <ChevronRight size={20} />
-              </button>
-            </footer>
           </div>
         ) : (
           <div className="empty-state">
