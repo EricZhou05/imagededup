@@ -53,6 +53,7 @@ function App() {
   });
   
   const [results, setResults] = useState<Cluster[]>([]);
+  const [visibleCount, setVisibleCount] = useState(20);
   const [selectedCluster, setSelectedCluster] = useState<Cluster | null>(null);
   const [keeps, setKeeps] = useState<Record<number, string>>({}); // clusterId -> keepPath
   const [destination, setDestination] = useState('');
@@ -275,11 +276,11 @@ function App() {
             </header>
             
             <div className="cluster-grid">
-              {results.map(cluster => (
+              {results.slice(0, visibleCount).map(cluster => (
                 <div key={cluster.id} className="cluster-card" onClick={() => setSelectedCluster(cluster)}>
                   <div className="cluster-previews">
                     {cluster.items.slice(0, 3).map((item, idx) => (
-                      <img key={idx} src={`/api/image?path=${encodeURIComponent(item.path)}`} alt="preview" />
+                      <img key={idx} src={`/api/image?path=${encodeURIComponent(item.path)}`} alt="preview" loading="lazy" />
                     ))}
                     {cluster.items.length > 3 && <div className="more">+{cluster.items.length - 3}</div>}
                   </div>
@@ -290,6 +291,14 @@ function App() {
                 </div>
               ))}
             </div>
+
+            {visibleCount < results.length && (
+              <div className="load-more">
+                <button className="btn-secondary" onClick={() => setVisibleCount(prev => prev + 20)}>
+                  加载更多 ({results.length - visibleCount} 组待查看)
+                </button>
+              </div>
+            )}
           </div>
         )}
       </main>

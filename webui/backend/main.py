@@ -20,6 +20,12 @@ app.add_middleware(
 )
 
 scanner = WebUIScanner()
+main_loop = None
+
+@app.on_event("startup")
+async def startup_event():
+    global main_loop
+    main_loop = asyncio.get_event_loop()
 
 class ScanRequest(BaseModel):
     directories: List[str]
@@ -41,22 +47,30 @@ class ConnectionManager:
         self.active_connections.append(websocket)
 
     def disconnect(self, websocket: WebSocket):
-        self.active_connections.remove(websocket)
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
 
     async def broadcast(self, message: dict):
         for connection in self.active_connections:
-            await connection.send_json(message)
+            try:
+                await connection.send_json(message)
+            except Exception:
+                pass
 
 manager = ConnectionManager()
 
-async def progress_callback(current, total, filename):
-    await manager.broadcast({
-        "type": "progress",
-        "progress": current,
-        "total": total,
-        "filename": filename,
-        "status": "scanning"
-    })
+def progress_callback(current, total, filename):
+    if main_loop:
+        asyncio.run_coroutine_threadsafe(
+            manager.broadcast({
+                "type": "progress",
+                "progress": current,
+                "total": total,
+                "filename": filename,
+                "status": "scanning"
+            }),
+            main_loop
+        )
 
 @app.websocket("/ws/status")
 async def websocket_endpoint(websocket: WebSocket):
@@ -79,7 +93,7 @@ async def start_scan(request: ScanRequest, background_tasks: BackgroundTasks):
         request.method, 
         request.threshold, 
         request.recursive,
-        lambda c, t, f: asyncio.run(progress_callback(c, t, f))
+        progress_callback
     )
     
     return {"message": "Scan started"}

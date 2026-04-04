@@ -1,6 +1,9 @@
 from typing import Callable, Dict
 
-import brute_force_cython_ext
+try:
+    import brute_force_cython_ext
+except ImportError:
+    brute_force_cython_ext = None
 
 
 class BruteForceCython:

@@ -67,7 +67,9 @@ class WebUIScanner:
             for i, f in enumerate(all_files):
                 self.state.progress = i + 1
                 self.state.current_file = f
-                if progress_callback:
+                
+                # 节流回调：每 10 个文件或最后一个文件时通知
+                if progress_callback and (i % 10 == 0 or i == self.state.total - 1):
                     progress_callback(i + 1, self.state.total, f)
                 
                 try:
@@ -80,11 +82,10 @@ class WebUIScanner:
             # 4. 寻找重复项
             self.state.status = "clustering"
             if method_name.lower() == "cnn":
-                duplicates = model.find_duplicates(encoding_map=encoding_map, min_similarity_threshold=threshold)
+                # 显式传 num_enc_workers=0 避免 warnings.warn("Parameter num_enc_workers has no effect since encodings are already provided")
+                duplicates = model.find_duplicates(encoding_map=encoding_map, min_similarity_threshold=threshold, num_enc_workers=0)
             else:
                 # Hashing 方法使用的是 max_distance_threshold
-                # 假设用户传入的是 0~1 的相似度，我们需要转换
-                # threshold 0.95 -> max_distance 64 * (1-0.95) = 3
                 max_dist = int(64 * (1 - threshold))
                 duplicates = model.find_duplicates(encoding_map=encoding_map, max_distance_threshold=max_dist)
 

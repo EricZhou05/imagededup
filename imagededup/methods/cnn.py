@@ -114,7 +114,7 @@ class CNN:
         else:
             unpacked_img_features_tensor = img_features_tensor.detach().numpy()
 
-        return unpacked_img_features_tensor
+        return unpacked_img_features_tensor.squeeze()
 
     def _get_cnn_features_batch(
         self,
