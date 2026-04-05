@@ -124,7 +124,7 @@ const HighlightPath = ({ path, allPaths }: { path: string, allPaths: string[] })
 function App() {
   const [directories, setDirectories] = useState<string>('');
   const [method, setMethod] = useState('cnn');
-  const [threshold, setThreshold] = useState(0.95);
+  const [threshold, setThreshold] = useState(1);
   const [recursive, setRecursive] = useState(true);
   const [ignoreSameDir, setIgnoreSameDir] = useState(false);
   
@@ -306,26 +306,33 @@ function App() {
       <aside className="sidebar">
         <div className="logo">
           <Search size={24} color="#3b82f6" />
-          <span>ImageDedup UI</span>
+          <span>图像去重 Web UI</span>
         </div>
         
         <div className="section">
           <h3><FolderOpen size={16} /> 扫描配置</h3>
           <div className="field">
-            <label>目标目录</label>
-            <textarea value={directories} onChange={e => setDirectories(e.target.value)} placeholder="D:\Photos" />
+            <label>目标目录 (一行一个)</label>
+            <textarea 
+              value={directories} 
+              onChange={e => setDirectories(e.target.value)} 
+              placeholder="D:\Photos&#10;E:\Backup" 
+              rows={4}
+            />
           </div>
           <div className="field">
             <label>算法</label>
             <select value={method} onChange={e => setMethod(e.target.value)}>
-              <option value="cnn">CNN (推荐)</option>
-              <option value="phash">PHash</option>
-              <option value="dhash">DHash</option>
+              <option value="cnn">卷积神经网络 (CNN)</option>
+              <option value="phash">感知哈希 (PHash)</option>
+              <option value="dhash">差异哈希 (DHash)</option>
+              <option value="ahash">均值哈希 (AHash)</option>
+              <option value="whash">小波哈希 (WHash)</option>
             </select>
           </div>
           <div className="field">
             <label>相似度阈值 ({threshold})</label>
-            <input type="range" min="0.8" max="1.0" step="0.01" value={threshold} onChange={e => setThreshold(parseFloat(e.target.value))} />
+            <input type="range" min="0" max="1.0" step="0.01" value={threshold} onChange={e => setThreshold(parseFloat(e.target.value))} />
           </div>
           <div className="field checkbox-field">
             <input 
