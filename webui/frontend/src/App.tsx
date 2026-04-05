@@ -10,7 +10,8 @@ import {
   ChevronLeft,
   ChevronRight,
   MousePointer2,
-  Keyboard
+  Keyboard,
+  HelpCircle
 } from 'lucide-react';
 import './App.css';
 
@@ -321,13 +322,27 @@ function App() {
             />
           </div>
           <div className="field">
-            <label>算法</label>
+            <label className="label-with-help">
+              算法
+              <div className="tooltip-wrapper">
+                <HelpCircle size={14} className="help-icon" />
+                <div className="tooltip-content">
+                  <div className="tooltip-title">💡 图像对比算法选择指南：</div>
+                  <div className="tooltip-item"><strong>CNN (AI模型)：</strong>最智能。识别图像“语义”，适合寻找内容相同但风格迥异（如原图 vs 手绘、大幅裁剪）的图片。</div>
+                  <div className="tooltip-item"><strong>PHash (感知)：</strong>最推荐。对亮度、色调及微小旋转不敏感，是识别相似图、日常查重的首选算法。</div>
+                  <div className="tooltip-item"><strong>DHash (差异)：</strong>最平衡。速度极快，且在图片被拉伸或长宽比变化时表现最稳健，适合海量图集初筛。</div>
+                  <div className="tooltip-item"><strong>WHash (小波)：</strong>更细腻。专为处理高压缩、多噪点的低画质图像优化，识别细节纹理更精准。</div>
+                  <div className="tooltip-item"><strong>AHash (均值)：</strong>极简。仅适用于寻找几乎完全一致的缩略图，对环境干扰抵抗力较弱。</div>
+                  <div className="tooltip-footer"><strong>应用建议：</strong>深度检索选 CNN，日常查重选 PHash，追求极致速度选 DHash。</div>
+                </div>
+              </div>
+            </label>
             <select value={method} onChange={e => setMethod(e.target.value)}>
               <option value="cnn">卷积神经网络 (CNN)</option>
               <option value="phash">感知哈希 (PHash)</option>
               <option value="dhash">差异哈希 (DHash)</option>
-              <option value="ahash">均值哈希 (AHash)</option>
               <option value="whash">小波哈希 (WHash)</option>
+              <option value="ahash">均值哈希 (AHash)</option>
             </select>
           </div>
           <div className="field">
