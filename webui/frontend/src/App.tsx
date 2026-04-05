@@ -368,7 +368,19 @@ function App() {
               </div>
               {method !== 'cnn' && (
                 <div className="field">
-                  <label>哈希大小 (Hash Size)</label>
+                  <label className="label-with-help">
+                    哈希大小 (Hash Size)
+                    <div className="tooltip-wrapper">
+                      <HelpCircle size={14} className="help-icon" />
+                      <div className="tooltip-content">
+                        <div className="tooltip-title">💡 如何选择哈希大小？</div>
+                        <div className="tooltip-item"><strong>极速查重 (Size 8)：</strong>忽略细节，只看大轮廓。适合找原图或海量库初步过滤。</div>
+                        <div className="tooltip-item"><strong>细节比对 (Size 16/32)：</strong>记录图像细节。Size 32 可分辨眨眼等微小差分。</div>
+                        <div className="tooltip-item"><strong>显微镜级 (Size 64)：</strong>极度敏感。肉眼不可见的压缩噪点也会导致匹配失败。</div>
+                        <div className="tooltip-footer"><strong>黄金平衡：</strong>Size 16 + 阈值 0.99 是二次元插画去重的性能/精度最佳点。</div>
+                      </div>
+                    </div>
+                  </label>
                   <select value={hashSize} onChange={e => setHashSize(parseInt(e.target.value))}>
                     <option value={8}>8</option>
                     <option value={16}>16 (默认)</option>
@@ -378,7 +390,19 @@ function App() {
                 </div>
               )}
               <div className="field">
-                <label>相似度阈值 ({threshold})</label>
+                <label className="label-with-help">
+                  相似度阈值 ({threshold})
+                  <div className="tooltip-wrapper">
+                    <HelpCircle size={14} className="help-icon" />
+                    <div className="tooltip-content">
+                      <div className="tooltip-title">💡 阈值与哈希大小组合策略：</div>
+                      <div className="tooltip-item"><strong>极速模式 (Size 8)：</strong>建议 0.95-1.0。步长0.02，设 0.99 将会与 1.0 等效。</div>
+                      <div className="tooltip-item"><strong>细节模式 (Size 16/32)：</strong>建议 0.90-0.98。调节细腻，0.01 的变动会有明显感知。</div>
+                      <div className="tooltip-item"><strong>显微镜模式 (Size 64)：</strong>建议 0.80-0.95。设 1.0 极难匹配，除非文件二进制完全一致。</div>
+                      <div className="tooltip-footer"><strong>建议：</strong>如果要区分极其相似的差分图，请提高 Size 并保持极高阈值。</div>
+                    </div>
+                  </div>
+                </label>
                 <input type="range" min="0" max="1.0" step="0.01" value={threshold} onChange={e => setThreshold(parseFloat(e.target.value))} />
               </div>
               <div className="field checkbox-field">
@@ -388,7 +412,17 @@ function App() {
                   checked={ignoreSameDir} 
                   onChange={e => setIgnoreSameDir(e.target.checked)} 
                 />
-                <label htmlFor="ignoreSameDir">不对比同目录文件</label>
+                <label htmlFor="ignoreSameDir" className="label-with-help">
+                  不对比同目录文件
+                  <div className="tooltip-wrapper">
+                    <HelpCircle size={14} className="help-icon" />
+                    <div className="tooltip-content">
+                      <div className="tooltip-title">💡 何时忽略同目录？</div>
+                      <div className="tooltip-item"><strong>📂 跨目录查重：</strong>当你确信单文件夹内没有重复，只想清理跨硬盘或跨备份路径的冗余时开启。</div>
+                      <div className="tooltip-item"><strong>📸 保留连拍：</strong>如果你在同一文件夹下存有大量极其相似的连拍图，开启此项可避免它们出现在结果中。</div>
+                    </div>
+                  </div>
+                </label>
               </div>
               <button className="btn-primary" onClick={startScan} disabled={status.status === 'scanning' || status.status === 'clustering'}>
                 {status.status === 'scanning' ? <Loader2 className="spin" /> : <Search size={18} />} 开始扫描

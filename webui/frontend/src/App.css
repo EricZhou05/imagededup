@@ -71,6 +71,7 @@
 
 .field {
   margin-bottom: 1.25rem;
+  position: relative; /* 添加定位基准 */
 }
 
 .field label {
@@ -87,9 +88,9 @@
 }
 
 .tooltip-wrapper {
-  position: relative;
   display: inline-flex;
   align-items: center;
+  /* 取消 position: relative，让子项相对于 .field 定位 */
 }
 
 .help-icon {
@@ -104,9 +105,8 @@
 
 .tooltip-content {
   position: absolute;
-  left: -35px;
-  top: 100%;
-  margin-top: 10px;
+  left: 0; /* 严格对齐 .field 的左侧 */
+  top: 1.8rem; /* 垂直方向位于标签下方 */
   width: 250px;
   background-color: #1e293b;
   border: 1px solid #334155;
