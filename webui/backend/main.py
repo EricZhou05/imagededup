@@ -32,6 +32,7 @@ class ScanRequest(BaseModel):
     method: str = "cnn"
     threshold: float = 0.95
     recursive: bool = True
+    ignore_same_dir: bool = False
 
 class MoveRequest(BaseModel):
     files: List[str]
@@ -93,7 +94,8 @@ async def start_scan(request: ScanRequest, background_tasks: BackgroundTasks):
         request.method, 
         request.threshold, 
         request.recursive,
-        progress_callback
+        progress_callback,
+        request.ignore_same_dir
     )
     
     return {"message": "Scan started"}

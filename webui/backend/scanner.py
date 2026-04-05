@@ -32,7 +32,8 @@ class WebUIScanner:
              method_name: str = "cnn", 
              threshold: float = 0.95, 
              recursive: bool = True,
-             progress_callback: Optional[Callable[[int, int, str], None]] = None):
+             progress_callback: Optional[Callable[[int, int, str], None]] = None,
+             ignore_same_dir: bool = False):
         
         self.state.status = "scanning"
         self.state.progress = 0
@@ -102,6 +103,18 @@ class WebUIScanner:
                 if dups:
                     # 将自己和所有重复项放入一个组
                     group = [file] + dups
+                    
+                    # 过滤逻辑：如果不对比同目录文件
+                    if ignore_same_dir:
+                        # 获取所有文件的父目录
+                        parent_dirs = {os.path.dirname(f) for f in group}
+                        # 如果所有图片都在同一个目录下，则忽略该组
+                        if len(parent_dirs) <= 1:
+                            # 注意：即使忽略该组，也需要将这些文件标记为已处理，防止后续重复处理
+                            for f in group:
+                                processed.add(f)
+                            continue
+
                     # 元数据提取
                     group_data = []
                     for f in group:

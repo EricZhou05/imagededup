@@ -126,6 +126,7 @@ function App() {
   const [method, setMethod] = useState('cnn');
   const [threshold, setThreshold] = useState(0.95);
   const [recursive, setRecursive] = useState(true);
+  const [ignoreSameDir, setIgnoreSameDir] = useState(false);
   
   const [status, setStatus] = useState<ScanStatus>({
     status: 'idle', progress: 0, total: 0, current_file: '', error: ''
@@ -233,7 +234,7 @@ function App() {
       await fetch('/api/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ directories: dirs, method, threshold, recursive })
+        body: JSON.stringify({ directories: dirs, method, threshold, recursive, ignore_same_dir: ignoreSameDir })
       });
     } catch (e) { alert('启动扫描失败'); }
   };
@@ -325,6 +326,15 @@ function App() {
           <div className="field">
             <label>相似度阈值 ({threshold})</label>
             <input type="range" min="0.8" max="1.0" step="0.01" value={threshold} onChange={e => setThreshold(parseFloat(e.target.value))} />
+          </div>
+          <div className="field checkbox-field">
+            <input 
+              type="checkbox" 
+              id="ignoreSameDir" 
+              checked={ignoreSameDir} 
+              onChange={e => setIgnoreSameDir(e.target.checked)} 
+            />
+            <label htmlFor="ignoreSameDir">不对比同目录文件</label>
           </div>
           <button className="btn-primary" onClick={startScan} disabled={status.status === 'scanning' || status.status === 'clustering'}>
             {status.status === 'scanning' ? <Loader2 className="spin" /> : <Search size={18} />} 开始扫描

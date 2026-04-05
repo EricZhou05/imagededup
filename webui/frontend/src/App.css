@@ -72,6 +72,26 @@
   resize: none;
 }
 
+.checkbox-field {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.checkbox-field input[type="checkbox"] {
+  width: 1.125rem;
+  height: 1.125rem;
+  cursor: pointer;
+  accent-color: #3b82f6;
+}
+
+.checkbox-field label {
+  margin-bottom: 0;
+  cursor: pointer;
+  user-select: none;
+}
+
 .btn-primary, .btn-danger {
   width: 100%;
   padding: 0.75rem;
