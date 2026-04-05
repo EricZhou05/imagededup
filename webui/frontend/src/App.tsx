@@ -310,6 +310,7 @@ function App() {
       });
       alert('移动成功');
       setResults([]);
+      setIsConfigExpanded(true);
     } catch (e) { alert('移动失败'); }
   };
 
