@@ -126,9 +126,9 @@ const HighlightPath = ({ path, allPaths }: { path: string, allPaths: string[] })
 
 function App() {
   const [directories, setDirectories] = useState<string>('');
-  const [method, setMethod] = useState('cnn');
+  const [method, setMethod] = useState('dhash');
   const [hashSize, setHashSize] = useState(16);
-  const [threshold, setThreshold] = useState(1);
+  const [threshold, setThreshold] = useState(0.99);
   const [recursive, setRecursive] = useState(true);
   const [ignoreSameDir, setIgnoreSameDir] = useState(false);
   const [isConfigExpanded, setIsConfigExpanded] = useState(true);
@@ -377,7 +377,7 @@ function App() {
                         <div className="tooltip-item"><strong>极速查重 (Size 8)：</strong>忽略细节，只看大轮廓。适合找原图或海量库初步过滤。</div>
                         <div className="tooltip-item"><strong>细节比对 (Size 16/32)：</strong>记录图像细节。Size 32 可分辨眨眼等微小差分。</div>
                         <div className="tooltip-item"><strong>显微镜级 (Size 64)：</strong>极度敏感。肉眼不可见的压缩噪点也会导致匹配失败。</div>
-                        <div className="tooltip-footer"><strong>黄金平衡：</strong>Size 16 + 阈值 0.99 是二次元插画去重的性能/精度最佳点。</div>
+                        <div className="tooltip-footer"><strong>黄金平衡：</strong>DHash + Size 16 + 阈值 0.99 是二次元插画去重的性能/精度最佳点。</div>
                       </div>
                     </div>
                   </label>
