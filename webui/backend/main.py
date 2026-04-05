@@ -31,6 +31,7 @@ class ScanRequest(BaseModel):
     directories: List[str]
     method: str = "cnn"
     threshold: float = 0.95
+    hash_size: int = 8
     recursive: bool = True
     ignore_same_dir: bool = False
 
@@ -93,6 +94,7 @@ async def start_scan(request: ScanRequest, background_tasks: BackgroundTasks):
         request.directories, 
         request.method, 
         request.threshold, 
+        request.hash_size,
         request.recursive,
         progress_callback,
         request.ignore_same_dir

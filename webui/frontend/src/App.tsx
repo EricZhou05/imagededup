@@ -125,6 +125,7 @@ const HighlightPath = ({ path, allPaths }: { path: string, allPaths: string[] })
 function App() {
   const [directories, setDirectories] = useState<string>('');
   const [method, setMethod] = useState('cnn');
+  const [hashSize, setHashSize] = useState(16);
   const [threshold, setThreshold] = useState(1);
   const [recursive, setRecursive] = useState(true);
   const [ignoreSameDir, setIgnoreSameDir] = useState(false);
@@ -235,7 +236,14 @@ function App() {
       await fetch('/api/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ directories: dirs, method, threshold, recursive, ignore_same_dir: ignoreSameDir })
+        body: JSON.stringify({ 
+          directories: dirs, 
+          method, 
+          threshold, 
+          hash_size: hashSize, 
+          recursive, 
+          ignore_same_dir: ignoreSameDir 
+        })
       });
     } catch (e) { alert('启动扫描失败'); }
   };
@@ -345,6 +353,17 @@ function App() {
               <option value="ahash">均值哈希 (AHash)</option>
             </select>
           </div>
+          {method !== 'cnn' && (
+            <div className="field">
+              <label>哈希大小 (Hash Size)</label>
+              <select value={hashSize} onChange={e => setHashSize(parseInt(e.target.value))}>
+                <option value={8}>8</option>
+                <option value={16}>16 (默认)</option>
+                <option value={32}>32</option>
+                <option value={64}>64</option>
+              </select>
+            </div>
+          )}
           <div className="field">
             <label>相似度阈值 ({threshold})</label>
             <input type="range" min="0" max="1.0" step="0.01" value={threshold} onChange={e => setThreshold(parseFloat(e.target.value))} />

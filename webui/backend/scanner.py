@@ -1,9 +1,14 @@
 import os
 import torch
 import numpy as np
+import warnings
 from pathlib import Path
 from typing import List, Dict, Any, Callable, Optional
 from imagededup.methods import CNN, PHash, DHash, AHash, WHash
+
+# 隐藏 imagededup 内部关于 num_enc_workers 的冗余警告
+warnings.filterwarnings('ignore', message='Parameter num_enc_workers has no effect')
+
 from imagededup.utils.general_utils import get_files_to_remove
 from .utils import get_image_metadata
 
@@ -31,6 +36,7 @@ class WebUIScanner:
              directories: List[str], 
              method_name: str = "cnn", 
              threshold: float = 0.95, 
+             hash_size: int = 8,
              recursive: bool = True,
              progress_callback: Optional[Callable[[int, int, str], None]] = None,
              ignore_same_dir: bool = False):
@@ -62,7 +68,32 @@ class WebUIScanner:
             # 2. 初始化模型
             method_cls = self.methods.get(method_name.lower(), CNN)
             model = method_cls()
-            
+
+            # 手动设置 hash_size 相关的内部属性 (imagededup 原生类不支持在 __init__ 中设置)
+            if method_name.lower() != "cnn":
+                if method_name.lower() == "phash":
+                    model.target_size = (hash_size * 4, hash_size * 4)
+                    # 关键：手动设置私有属性名
+                    model._PHash__coefficient_extract = (hash_size, hash_size)
+                    print(f"DEBUG: PHash injected - target_size: {model.target_size}, coeff: {model._PHash__coefficient_extract}")
+                elif method_name.lower() == "ahash":
+                    model.target_size = (hash_size, hash_size)
+                    print(f"DEBUG: AHash injected - target_size: {model.target_size}")
+                elif method_name.lower() == "dhash":
+                    model.target_size = (hash_size + 1, hash_size)
+                    print(f"DEBUG: DHash injected - target_size: {model.target_size}")
+                elif method_name.lower() == "whash":
+                    model.target_size = (hash_size, hash_size)
+                    print(f"DEBUG: WHash injected - target_size: {model.target_size}")
+
+            # 自行测试代码：验证哈希长度
+            if method_name.lower() != "cnn" and all_files:
+                test_f = all_files[0]
+                test_enc = model.encode_image(image_file=test_f)
+                print(f"DEBUG: Test file: {test_f}")
+                print(f"DEBUG: Hash length: {len(test_enc) * 4} bits (hex length: {len(test_enc)})")
+                print(f"DEBUG: Threshold used: {threshold}, Max Hamming Distance allowed: {int((hash_size ** 2) * (1 - threshold))}")
+
             # 3. 提取特征
             encoding_map = {}
             for i, f in enumerate(all_files):
@@ -87,7 +118,8 @@ class WebUIScanner:
                 duplicates = model.find_duplicates(encoding_map=encoding_map, min_similarity_threshold=threshold)
             else:
                 # Hashing 方法使用的是 max_distance_threshold
-                max_dist = int(64 * (1 - threshold))
+                # 汉明距离的最大值为 hash_size * hash_size
+                max_dist = int((hash_size ** 2) * (1 - threshold))
                 duplicates = model.find_duplicates(encoding_map=encoding_map, max_distance_threshold=max_dist)
 
             # 5. 聚类结果展示
