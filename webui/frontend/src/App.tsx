@@ -142,6 +142,14 @@ function App() {
   const [innerIndex, setInnerIndex] = useState(0); // 组内当前图片索引
   const [deletes, setDeletes] = useState<Record<number, string[]>>({}); // clusterId -> deletePaths[]
   const [destination, setDestination] = useState('');
+
+  // 当目录改变时，自动填充备份目录
+  useEffect(() => {
+    const firstDir = directories.split('\n').filter(d => d.trim())[0];
+    if (firstDir) {
+      setDestination(firstDir.trim() + '_dedup');
+    }
+  }, [directories]);
   
   // 缩放状态
   const [transform, setTransform] = useState({ scale: 1, offset: { x: 0, y: 0 } });
