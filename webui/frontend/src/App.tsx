@@ -9,6 +9,8 @@ import {
   ArrowRightLeft,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   MousePointer2,
   Keyboard,
   HelpCircle
@@ -129,6 +131,7 @@ function App() {
   const [threshold, setThreshold] = useState(1);
   const [recursive, setRecursive] = useState(true);
   const [ignoreSameDir, setIgnoreSameDir] = useState(false);
+  const [isConfigExpanded, setIsConfigExpanded] = useState(true);
   
   const [status, setStatus] = useState<ScanStatus>({
     status: 'idle', progress: 0, total: 0, current_file: '', error: ''
@@ -252,6 +255,9 @@ function App() {
     const res = await fetch('/api/results');
     const data = await res.json();
     setResults(data);
+    if (data.length > 0) {
+      setIsConfigExpanded(false);
+    }
     const newDeletes: Record<number, string[]> = {};
     // 默认勾选最小大小的唯一一张图片
     data.forEach((c: Cluster) => { 
@@ -319,67 +325,76 @@ function App() {
         </div>
         
         <div className="section">
-          <h3><FolderOpen size={16} /> 扫描配置</h3>
-          <div className="field">
-            <label>目标目录 (一行一个)</label>
-            <textarea 
-              value={directories} 
-              onChange={e => setDirectories(e.target.value)} 
-              placeholder="D:\Photos&#10;E:\Backup" 
-              rows={4}
-            />
-          </div>
-          <div className="field">
-            <label className="label-with-help">
-              算法
-              <div className="tooltip-wrapper">
-                <HelpCircle size={14} className="help-icon" />
-                <div className="tooltip-content">
-                  <div className="tooltip-title">💡 图像对比算法选择指南：</div>
-                  <div className="tooltip-item"><strong>CNN (AI模型)：</strong>最智能。识别图像“语义”，适合寻找内容相同但风格迥异（如原图 vs 手绘、大幅裁剪）的图片。</div>
-                  <div className="tooltip-item"><strong>PHash (感知)：</strong>最推荐。对亮度、色调及微小旋转不敏感，是识别相似图、日常查重的首选算法。</div>
-                  <div className="tooltip-item"><strong>DHash (差异)：</strong>最平衡。速度极快，且在图片被拉伸或长宽比变化时表现最稳健，适合海量图集初筛。</div>
-                  <div className="tooltip-item"><strong>WHash (小波)：</strong>更细腻。专为处理高压缩、多噪点的低画质图像优化，识别细节纹理更精准。</div>
-                  <div className="tooltip-item"><strong>AHash (均值)：</strong>极简。仅适用于寻找几乎完全一致的缩略图，对环境干扰抵抗力较弱。</div>
-                  <div className="tooltip-footer"><strong>应用建议：</strong>深度检索选 CNN，日常查重选 PHash，追求极致速度选 DHash。</div>
-                </div>
+          <h3 className="collapsible-header" onClick={() => setIsConfigExpanded(!isConfigExpanded)}>
+            <div className="header-label">
+              <FolderOpen size={16} /> 扫描配置
+            </div>
+            {isConfigExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </h3>
+          {isConfigExpanded && (
+            <div className="collapsible-content">
+              <div className="field">
+                <label>目标目录 (一行一个)</label>
+                <textarea 
+                  value={directories} 
+                  onChange={e => setDirectories(e.target.value)} 
+                  placeholder="D:\Photos&#10;E:\Backup" 
+                  rows={4}
+                />
               </div>
-            </label>
-            <select value={method} onChange={e => setMethod(e.target.value)}>
-              <option value="cnn">卷积神经网络 (CNN)</option>
-              <option value="phash">感知哈希 (PHash)</option>
-              <option value="dhash">差异哈希 (DHash)</option>
-              <option value="whash">小波哈希 (WHash)</option>
-              <option value="ahash">均值哈希 (AHash)</option>
-            </select>
-          </div>
-          {method !== 'cnn' && (
-            <div className="field">
-              <label>哈希大小 (Hash Size)</label>
-              <select value={hashSize} onChange={e => setHashSize(parseInt(e.target.value))}>
-                <option value={8}>8</option>
-                <option value={16}>16 (默认)</option>
-                <option value={32}>32</option>
-                <option value={64}>64</option>
-              </select>
+              <div className="field">
+                <label className="label-with-help">
+                  算法
+                  <div className="tooltip-wrapper">
+                    <HelpCircle size={14} className="help-icon" />
+                    <div className="tooltip-content">
+                      <div className="tooltip-title">💡 图像对比算法选择指南：</div>
+                      <div className="tooltip-item"><strong>CNN (AI模型)：</strong>最智能。识别图像“语义”，适合寻找内容相同但风格迥异（如原图 vs 手绘、大幅裁剪）的图片。</div>
+                      <div className="tooltip-item"><strong>PHash (感知)：</strong>最推荐。对亮度、色调及微小旋转不敏感，是识别相似图、日常查重的首选算法。</div>
+                      <div className="tooltip-item"><strong>DHash (差异)：</strong>最平衡。速度极快，且在图片被拉伸或长宽比变化时表现最稳健，适合海量图集初筛。</div>
+                      <div className="tooltip-item"><strong>WHash (小波)：</strong>更细腻。专为处理高压缩、多噪点的低画质图像优化，识别细节纹理更精准。</div>
+                      <div className="tooltip-item"><strong>AHash (均值)：</strong>极简。仅适用于寻找几乎完全一致的缩略图，对环境干扰抵抗力较弱。</div>
+                      <div className="tooltip-footer"><strong>应用建议：</strong>深度检索选 CNN，日常查重选 PHash，追求极致速度选 DHash。</div>
+                    </div>
+                  </div>
+                </label>
+                <select value={method} onChange={e => setMethod(e.target.value)}>
+                  <option value="cnn">卷积神经网络 (CNN)</option>
+                  <option value="phash">感知哈希 (PHash)</option>
+                  <option value="dhash">差异哈希 (DHash)</option>
+                  <option value="whash">小波哈希 (WHash)</option>
+                  <option value="ahash">均值哈希 (AHash)</option>
+                </select>
+              </div>
+              {method !== 'cnn' && (
+                <div className="field">
+                  <label>哈希大小 (Hash Size)</label>
+                  <select value={hashSize} onChange={e => setHashSize(parseInt(e.target.value))}>
+                    <option value={8}>8</option>
+                    <option value={16}>16 (默认)</option>
+                    <option value={32}>32</option>
+                    <option value={64}>64</option>
+                  </select>
+                </div>
+              )}
+              <div className="field">
+                <label>相似度阈值 ({threshold})</label>
+                <input type="range" min="0" max="1.0" step="0.01" value={threshold} onChange={e => setThreshold(parseFloat(e.target.value))} />
+              </div>
+              <div className="field checkbox-field">
+                <input 
+                  type="checkbox" 
+                  id="ignoreSameDir" 
+                  checked={ignoreSameDir} 
+                  onChange={e => setIgnoreSameDir(e.target.checked)} 
+                />
+                <label htmlFor="ignoreSameDir">不对比同目录文件</label>
+              </div>
+              <button className="btn-primary" onClick={startScan} disabled={status.status === 'scanning' || status.status === 'clustering'}>
+                {status.status === 'scanning' ? <Loader2 className="spin" /> : <Search size={18} />} 开始扫描
+              </button>
             </div>
           )}
-          <div className="field">
-            <label>相似度阈值 ({threshold})</label>
-            <input type="range" min="0" max="1.0" step="0.01" value={threshold} onChange={e => setThreshold(parseFloat(e.target.value))} />
-          </div>
-          <div className="field checkbox-field">
-            <input 
-              type="checkbox" 
-              id="ignoreSameDir" 
-              checked={ignoreSameDir} 
-              onChange={e => setIgnoreSameDir(e.target.checked)} 
-            />
-            <label htmlFor="ignoreSameDir">不对比同目录文件</label>
-          </div>
-          <button className="btn-primary" onClick={startScan} disabled={status.status === 'scanning' || status.status === 'clustering'}>
-            {status.status === 'scanning' ? <Loader2 className="spin" /> : <Search size={18} />} 开始扫描
-          </button>
         </div>
 
         {results.length > 0 && (
