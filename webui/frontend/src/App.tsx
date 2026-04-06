@@ -26,6 +26,8 @@ interface ImageMeta {
   size_bytes: number;
   width: number;
   height: number;
+  modified_at: string;
+  modified_timestamp: number;
 }
 
 interface Cluster {
@@ -316,10 +318,12 @@ function App() {
 
   // 查找最小属性
   const minStats = useMemo(() => {
-    if (!currentCluster) return { size: 0, res: 0 };
+    if (!currentCluster) return { size: 0, res: 0, hasDifferentModified: false };
+    const timestamps = currentCluster.items.map(i => i.modified_timestamp);
     return {
       size: Math.min(...currentCluster.items.map(i => i.size_bytes)),
-      res: Math.min(...currentCluster.items.map(i => i.width * i.height))
+      res: Math.min(...currentCluster.items.map(i => i.width * i.height)),
+      hasDifferentModified: new Set(timestamps).size > 1
     };
   }, [currentCluster]);
 
@@ -521,6 +525,10 @@ function App() {
                     <div className={`meta-item ${currentItem.size_bytes === minStats.size ? 'danger' : ''}`}>
                       <span className="label">大小</span>
                       <span className="value">{currentItem.size_human}</span>
+                    </div>
+                    <div className={`meta-item ${minStats.hasDifferentModified ? 'danger' : ''}`}>
+                      <span className="label">修改日期</span>
+                      <span className="value">{currentItem.modified_at}</span>
                     </div>
                   </div>
                   <div className="meta-item path-item">

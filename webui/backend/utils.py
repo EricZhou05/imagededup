@@ -2,12 +2,14 @@ import os
 from pathlib import Path
 from PIL import Image
 from typing import Dict, Any
+from datetime import datetime
 
 def get_image_metadata(file_path: str) -> Dict[str, Any]:
-    """获取图片的元数据：分辨率、文件大小、原始路径。"""
+    """获取图片的元数据：分辨率、文件大小、原始路径、修改时间。"""
     try:
         path = Path(file_path)
         stats = path.stat()
+        modified_time = datetime.fromtimestamp(stats.st_mtime)
         with Image.open(file_path) as img:
             width, height = img.size
             
@@ -19,7 +21,9 @@ def get_image_metadata(file_path: str) -> Dict[str, Any]:
             "size_human": f"{stats.st_size / 1024 / 1024:.2f} MB",
             "resolution": f"{width}x{height}",
             "width": width,
-            "height": height
+            "height": height,
+            "modified_at": modified_time.strftime("%Y-%m-%d %H:%M:%S"),
+            "modified_timestamp": stats.st_mtime
         }
     except Exception as e:
         return {

@@ -5,6 +5,33 @@ import time
 import webbrowser
 import signal
 
+def kill_process_on_port(port):
+    """强制关闭占用指定端口的进程 (Windows 平台)"""
+    if os.name != 'nt':
+        return
+    try:
+        # 查找监听指定端口的 PID
+        # netstat -ano 输出格式通常为: TCP 0.0.0.0:8000 0.0.0.0:0 LISTENING 1234
+        cmd = f'netstat -ano | findstr LISTENING | findstr :{port}'
+        output = subprocess.check_output(cmd, shell=True).decode()
+        
+        pids = set()
+        for line in output.strip().split('\n'):
+            line = line.strip()
+            if not line: continue
+            parts = line.split()
+            # 简单校验确保是目标端口
+            if f":{port}" in parts[1]:
+                pids.add(parts[-1])
+        
+        for pid in pids:
+            if pid != '0':
+                subprocess.run(['taskkill', '/F', '/T', '/PID', pid], capture_output=True)
+                print(f"--- 端口 {port} 已清理 (PID: {pid}) ---")
+    except Exception:
+        # 没有找到占用进程或没有权限时跳过
+        pass
+
 def run_webui():
     # 1. 获取基础路径
     root_dir = os.path.dirname(os.path.abspath(__file__))
@@ -22,6 +49,11 @@ def run_webui():
     frontend_cmd = "pnpm dev --port 5173"
 
     print("--- 正在启动 ImageDedup Web UI ---")
+    
+    # 0. 启动前强制清理端口
+    print("正在检查并清理残留端口...")
+    kill_process_on_port(8000) # 后端
+    kill_process_on_port(5173) # 前端
     
     # 启动后端 (直接输出到主控制台，避免管道阻塞)
     print(f"正在启动后端服务 (端口 8000)...")

@@ -119,7 +119,15 @@ class WebUIScanner:
             else:
                 # Hashing 方法使用的是 max_distance_threshold
                 # 汉明距离的最大值为 hash_size * hash_size
+                # 注意：imagededup 库内部要求该阈值在 0-64 之间
                 max_dist = int((hash_size ** 2) * (1 - threshold))
+                if max_dist > 64:
+                    print(f"WARNING: Calculated max_dist {max_dist} exceeds the library limit (64). Clamping to 64.")
+                    max_dist = 64
+                elif max_dist < 0:
+                    max_dist = 0
+                
+                print(f"DEBUG: Using max_distance_threshold: {max_dist}")
                 duplicates = model.find_duplicates(encoding_map=encoding_map, max_distance_threshold=max_dist)
 
             # 5. 聚类结果展示

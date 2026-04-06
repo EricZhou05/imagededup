@@ -402,7 +402,7 @@ button:disabled { opacity: 0.3; cursor: not-allowed; }
 
 .meta-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 1rem;
   margin-bottom: 0.4rem;
 }
@@ -410,10 +410,11 @@ button:disabled { opacity: 0.3; cursor: not-allowed; }
 .meta-item {
   display: flex;
   gap: 0.5rem;
+  min-width: 0; /* 防止内容撑破网格 */
 }
 
-.meta-item .label { color: #64748b; min-width: 60px; }
-.meta-item .value { color: #cbd5e1; word-break: break-all; }
+.meta-item .label { color: #64748b; min-width: 55px; flex-shrink: 0; }
+.meta-item .value { color: #cbd5e1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .meta-item.danger .value { color: #f87171; font-weight: 600; }
 
 .path-item {
