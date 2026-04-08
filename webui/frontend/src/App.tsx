@@ -133,6 +133,7 @@ function App() {
   const [threshold, setThreshold] = useState(1);
   const [recursive, setRecursive] = useState(true);
   const [ignoreSameDir, setIgnoreSameDir] = useState(false);
+  const [smartSelect, setSmartSelect] = useState(true);
   const [isConfigExpanded, setIsConfigExpanded] = useState(true);
   
   const [status, setStatus] = useState<ScanStatus>({
@@ -240,6 +241,7 @@ function App() {
 
   const startScan = async () => {
     setResults([]);
+    setDeletes({});
     setCurrentIndex(0);
     setInnerIndex(0);
     const dirs = directories.split('\n').filter(d => d.trim());
@@ -268,9 +270,12 @@ function App() {
     if (data.length > 0) {
       setIsConfigExpanded(false);
     }
+  };
+
+  // 后台实时计算智能判定结果
+  const smartDeletes = useMemo(() => {
     const newDeletes: Record<number, string[]> = {};
-    // 默认勾选逻辑：当各个图片大小几乎一样(<=0.01MB)时，自动选择修改时间较晚的图片；差距大则删除较小的文件
-    data.forEach((c: Cluster) => { 
+    results.forEach((c: Cluster) => { 
       const toDelete = c.items.reduce((prev, curr) => {
         const sizeDiff = Math.abs(prev.size_bytes - curr.size_bytes);
         const thresholdBytes = 0.01 * 1024 * 1024; // 0.01MB
@@ -281,7 +286,24 @@ function App() {
       });
       newDeletes[c.id] = [toDelete.path]; 
     });
-    setDeletes(newDeletes);
+    return newDeletes;
+  }, [results]);
+
+  // 当结果集初次加载且开启了智能勾选时，自动应用
+  useEffect(() => {
+    if (results.length > 0 && smartSelect) {
+      setDeletes(smartDeletes);
+    }
+  }, [results]);
+
+  // 切换开关时实时更新勾选状态
+  const handleSmartSelectToggle = (checked: boolean) => {
+    setSmartSelect(checked);
+    if (checked) {
+      setDeletes(smartDeletes);
+    } else {
+      setDeletes({});
+    }
   };
 
   useEffect(() => {
@@ -438,6 +460,29 @@ function App() {
                       <div className="tooltip-title">💡 何时忽略同目录？</div>
                       <div className="tooltip-item"><strong>📂 跨目录查重：</strong>当你确信单文件夹内没有重复，只想清理跨硬盘或跨备份路径的冗余时开启。</div>
                       <div className="tooltip-item"><strong>📸 保留连拍：</strong>如果你在同一文件夹下存有大量极其相似的连拍图，开启此项可避免它们出现在结果中。</div>
+                    </div>
+                  </div>
+                </label>
+              </div>
+              <div className="field checkbox-field">
+                <input 
+                  type="checkbox" 
+                  id="smartSelect" 
+                  checked={smartSelect} 
+                  onChange={e => handleSmartSelectToggle(e.target.checked)} 
+                />
+                <label htmlFor="smartSelect" className="label-with-help">
+                  智能勾选
+                  <div className="tooltip-wrapper">
+                    <HelpCircle size={14} className="help-icon" />
+                    <div className="tooltip-content">
+                      <div className="tooltip-title">💡 智能勾选逻辑说明：</div>
+                      <div className="tooltip-item"><strong>📏 容量优先：</strong>若重复组内文件大小差异显著（&gt;0.01MB），系统将自动勾选体积较小的文件待删。</div>
+                      <div className="tooltip-item"><strong>🕒 时间判定：</strong>若文件大小几乎一致（差异&le;0.01MB），系统将自动勾选修改时间较晚（更新）的文件待删。</div>
+                      <div className="tooltip-item" style={{color: '#f87171', marginTop: '0.5rem', borderTop: '1px dashed #444', paddingTop: '0.5rem'}}>
+                        <strong>⚠️ 注意：</strong>切换此开关将立即覆盖您在预览区进行的所有手动勾选数据！
+                      </div>
+                      <div className="tooltip-footer"><strong>建议：</strong>开启后可极大减少手动比对工作量。</div>
                     </div>
                   </div>
                 </label>
