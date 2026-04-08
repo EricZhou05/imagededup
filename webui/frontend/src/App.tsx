@@ -269,12 +269,17 @@ function App() {
       setIsConfigExpanded(false);
     }
     const newDeletes: Record<number, string[]> = {};
-    // 默认勾选最小大小的唯一一张图片
+    // 默认勾选逻辑：当各个图片大小几乎一样(<=0.01MB)时，自动选择修改时间较早的图片；差距大则删除较小的文件
     data.forEach((c: Cluster) => { 
-      const smallest = c.items.reduce((prev, curr) => 
-        prev.size_bytes < curr.size_bytes ? prev : curr
-      );
-      newDeletes[c.id] = [smallest.path]; 
+      const toDelete = c.items.reduce((prev, curr) => {
+        const sizeDiff = Math.abs(prev.size_bytes - curr.size_bytes);
+        const thresholdBytes = 0.01 * 1024 * 1024; // 0.01MB
+        if (sizeDiff <= thresholdBytes) {
+          return prev.modified_timestamp < curr.modified_timestamp ? prev : curr;
+        }
+        return prev.size_bytes < curr.size_bytes ? prev : curr;
+      });
+      newDeletes[c.id] = [toDelete.path]; 
     });
     setDeletes(newDeletes);
   };
