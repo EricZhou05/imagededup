@@ -8,6 +8,7 @@ ENV/
 build/
 dist/
 *.egg-info/
+.imagededup_cache.db
 
 # Node/React
 node_modules/

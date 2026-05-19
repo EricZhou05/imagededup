@@ -5,6 +5,8 @@ import warnings
 from pathlib import Path
 from typing import List, Dict, Any, Callable, Optional
 from imagededup.methods import CNN, PHash, DHash, AHash, WHash
+import sqlite3
+import pickle
 
 # 隐藏 imagededup 内部关于 num_enc_workers 的冗余警告
 warnings.filterwarnings('ignore', message='Parameter num_enc_workers has no effect')
@@ -31,6 +33,47 @@ class WebUIScanner:
             "ahash": AHash,
             "whash": WHash
         }
+        self.db_path = Path("./.imagededup_cache.db")
+        self._init_db()
+
+    def _init_db(self):
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS encodings (
+                    filepath TEXT,
+                    mtime REAL,
+                    method TEXT,
+                    hash_size INTEGER,
+                    encoding BLOB,
+                    PRIMARY KEY (filepath, method, hash_size)
+                )
+            ''')
+
+    def _get_cached_encoding(self, filepath, mtime, method, hash_size):
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.execute(
+                    'SELECT mtime, encoding FROM encodings WHERE filepath = ? AND method = ? AND hash_size = ?',
+                    (filepath, method, hash_size)
+                )
+                row = cursor.fetchone()
+                if row:
+                    cached_mtime, blob = row
+                    if cached_mtime == mtime:
+                        return pickle.loads(blob)
+        except Exception as e:
+            print(f"Cache read error: {e}")
+        return None
+
+    def _save_encoding(self, filepath, mtime, method, hash_size, encoding):
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                conn.execute(
+                    'REPLACE INTO encodings (filepath, mtime, method, hash_size, encoding) VALUES (?, ?, ?, ?, ?)',
+                    (filepath, mtime, method, hash_size, pickle.dumps(encoding))
+                )
+        except Exception as e:
+            print(f"Cache write error: {e}")
 
     def scan(self, 
              directories: List[str], 
@@ -105,9 +148,17 @@ class WebUIScanner:
                     progress_callback(i + 1, self.state.total, f)
                 
                 try:
-                    encoding = model.encode_image(image_file=f)
-                    if encoding is not None:
-                        encoding_map[f] = encoding
+                    mtime = os.path.getmtime(f)
+                    current_hash_size = 0 if method_name.lower() == "cnn" else hash_size
+                    
+                    cached_enc = self._get_cached_encoding(f, mtime, method_name.lower(), current_hash_size)
+                    if cached_enc is not None:
+                        encoding_map[f] = cached_enc
+                    else:
+                        encoding = model.encode_image(image_file=f)
+                        if encoding is not None:
+                            encoding_map[f] = encoding
+                            self._save_encoding(f, mtime, method_name.lower(), current_hash_size, encoding)
                 except Exception as e:
                     print(f"Error encoding {f}: {e}")
 
