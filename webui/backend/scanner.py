@@ -164,6 +164,8 @@ class WebUIScanner:
 
             # 4. 寻找重复项
             self.state.status = "clustering"
+            if progress_callback:
+                progress_callback(self.state.total, self.state.total, "")
             if method_name.lower() == "cnn":
                 # 已经手动提取了 encoding_map，此时 find_duplicates 不应传递编码相关的参数以避免警告
                 duplicates = model.find_duplicates(encoding_map=encoding_map, min_similarity_threshold=threshold)
@@ -220,6 +222,8 @@ class WebUIScanner:
             
             self.state.results = clusters
             self.state.status = "finished"
+            if progress_callback:
+                progress_callback(self.state.total, self.state.total, "")
             return clusters
 
         except Exception as e:

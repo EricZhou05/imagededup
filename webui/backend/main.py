@@ -25,7 +25,7 @@ main_loop = None
 @app.on_event("startup")
 async def startup_event():
     global main_loop
-    main_loop = asyncio.get_event_loop()
+    main_loop = asyncio.get_running_loop()
 
 class ScanRequest(BaseModel):
     directories: List[str]
@@ -62,17 +62,24 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 def progress_callback(current, total, filename):
-    if main_loop:
+    # 推送失败绝不能影响扫描任务本身，统一从 scanner.state 读取当前状态
+    try:
+        if main_loop is None:
+            return
         asyncio.run_coroutine_threadsafe(
             manager.broadcast({
                 "type": "progress",
                 "progress": current,
                 "total": total,
+                "current_file": filename,
                 "filename": filename,
-                "status": "scanning"
+                "status": scanner.state.status,
+                "error": scanner.state.error
             }),
             main_loop
         )
+    except Exception as e:
+        print(f"WebSocket 推送失败: {e}")
 
 @app.websocket("/ws/status")
 async def websocket_endpoint(websocket: WebSocket):

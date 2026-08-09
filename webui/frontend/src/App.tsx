@@ -43,6 +43,29 @@ interface ScanStatus {
   error: string;
 }
 
+// ============ 配置持久化：刷新页面后保留用户填写的内容 ============
+const CONFIG_KEY = 'imagededup_webui_config';
+
+interface SavedConfig {
+  directories: string;
+  method: string;
+  hashSize: number;
+  threshold: number;
+  recursive: boolean;
+  ignoreSameDir: boolean;
+  smartSelect: boolean;
+  destination: string;
+}
+
+function loadSavedConfig(): Partial<SavedConfig> {
+  try {
+    const raw = localStorage.getItem(CONFIG_KEY);
+    return raw ? JSON.parse(raw) as Partial<SavedConfig> : {};
+  } catch {
+    return {};
+  }
+}
+
 // 图片缩放平移组件
 const ImageCanvas = ({ src, scale, offset, onTransform }: any) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -127,13 +150,14 @@ const HighlightPath = ({ path, allPaths }: { path: string, allPaths: string[] })
 };
 
 function App() {
-  const [directories, setDirectories] = useState<string>('');
-  const [method, setMethod] = useState('dhash');
-  const [hashSize, setHashSize] = useState(32);
-  const [threshold, setThreshold] = useState(1);
-  const [recursive, setRecursive] = useState(true);
-  const [ignoreSameDir, setIgnoreSameDir] = useState(false);
-  const [smartSelect, setSmartSelect] = useState(true);
+  const [savedConfig] = useState(loadSavedConfig);
+  const [directories, setDirectories] = useState<string>(savedConfig.directories ?? '');
+  const [method, setMethod] = useState(savedConfig.method ?? 'dhash');
+  const [hashSize, setHashSize] = useState(savedConfig.hashSize ?? 32);
+  const [threshold, setThreshold] = useState(savedConfig.threshold ?? 1);
+  const [recursive, setRecursive] = useState(savedConfig.recursive ?? true);
+  const [ignoreSameDir, setIgnoreSameDir] = useState(savedConfig.ignoreSameDir ?? false);
+  const [smartSelect, setSmartSelect] = useState(savedConfig.smartSelect ?? true);
   const [isConfigExpanded, setIsConfigExpanded] = useState(true);
   
   const [status, setStatus] = useState<ScanStatus>({
@@ -144,15 +168,24 @@ function App() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [innerIndex, setInnerIndex] = useState(0); // 组内当前图片索引
   const [deletes, setDeletes] = useState<Record<number, string[]>>({}); // clusterId -> deletePaths[]
-  const [destination, setDestination] = useState('');
+  const [destination, setDestination] = useState(savedConfig.destination ?? '');
 
-  // 当目录改变时，自动填充备份目录
+  // 当目录改变时，自动填充备份目录（仅在用户未手动填写时）
   useEffect(() => {
     const firstDir = directories.split('\n').filter(d => d.trim())[0];
     if (firstDir) {
-      setDestination(firstDir.trim() + '_dedup');
+      setDestination(prev => prev || firstDir.trim() + '_dedup');
     }
   }, [directories]);
+
+  // 配置变更时持久化到 localStorage，刷新后不丢失
+  useEffect(() => {
+    try {
+      localStorage.setItem(CONFIG_KEY, JSON.stringify({
+        directories, method, hashSize, threshold, recursive, ignoreSameDir, smartSelect, destination
+      }));
+    } catch { /* localStorage 不可用时静默失败 */ }
+  }, [directories, method, hashSize, threshold, recursive, ignoreSameDir, smartSelect, destination]);
   
   // 缩放状态
   const [transform, setTransform] = useState({ scale: 1, offset: { x: 0, y: 0 } });
@@ -224,31 +257,51 @@ function App() {
   };
 
   const connectWS = () => {
+    if (ws.current && (ws.current.readyState === WebSocket.OPEN || ws.current.readyState === WebSocket.CONNECTING)) {
+      return;
+    }
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.host;
-    const wsUrl = `${protocol}//${host}/ws/status`;
-    ws.current = new WebSocket(wsUrl);
-    ws.current.onmessage = (e) => {
-      const data = JSON.parse(e.data);
-      if (data.type === 'progress') setStatus(prev => ({ ...prev, ...data }));
+    const wsUrl = `${protocol}//${window.location.host}/ws/status`;
+    const socket = new WebSocket(wsUrl);
+    ws.current = socket;
+    socket.onmessage = (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        if (data.type !== 'progress') return;
+        setStatus(prev => ({
+          ...prev,
+          progress: typeof data.progress === 'number' ? data.progress : prev.progress,
+          total: typeof data.total === 'number' ? data.total : prev.total,
+          current_file: data.current_file ?? data.filename ?? prev.current_file,
+          status: data.status ?? prev.status,
+        }));
+        if (data.status === 'finished') {
+          fetchResults();
+        }
+      } catch { /* 忽略非法消息 */ }
     };
+    socket.onerror = () => {};
+    socket.onclose = () => { ws.current = null; };
   };
 
   useEffect(() => {
     connectWS();
-    return () => ws.current?.close();
+    return () => { ws.current?.close(); ws.current = null; };
   }, []);
 
   const startScan = async () => {
+    const dirs = directories.split('\n').filter(d => d.trim());
+    if (dirs.length === 0) return alert('请输入至少一个目录');
+
     setResults([]);
     setDeletes({});
     setCurrentIndex(0);
     setInnerIndex(0);
-    const dirs = directories.split('\n').filter(d => d.trim());
-    if (dirs.length === 0) return alert('请输入至少一个目录');
-    
+    // 立即进入 scanning 状态以激活轮询，不依赖 WebSocket 首条推送
+    setStatus({ status: 'scanning', progress: 0, total: 0, current_file: '', error: '' });
+
     try {
-      await fetch('/api/scan', {
+      const res = await fetch('/api/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -260,7 +313,11 @@ function App() {
           ignore_same_dir: ignoreSameDir 
         })
       });
-    } catch (e) { alert('启动扫描失败'); }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    } catch (e) {
+      setStatus(prev => ({ ...prev, status: 'error', error: '启动扫描失败：无法连接后端服务' }));
+      alert('启动扫描失败');
+    }
   };
 
   const fetchResults = async () => {
@@ -306,21 +363,42 @@ function App() {
     }
   };
 
+  // scanning/clustering 期间每秒轮询后端状态，保证进度实时跟进
   useEffect(() => {
-    let timer: number;
-    if (status.status === 'scanning' || status.status === 'clustering') {
-      timer = window.setInterval(async () => {
+    if (status.status !== 'scanning' && status.status !== 'clustering') return;
+    const timer = window.setInterval(async () => {
+      try {
         const res = await fetch('/api/status');
+        if (!res.ok) return;
         const data = await res.json();
         setStatus(data);
         if (data.status === 'finished') {
-          clearInterval(timer);
           fetchResults();
         }
-      }, 1000);
-    }
+      } catch {
+        // 网络异常时继续重试，轮询兜底
+      }
+    }, 1000);
     return () => clearInterval(timer);
   }, [status.status]);
+
+  // 页面加载时同步一次后端状态：刷新页面后立即恢复对进行中任务的监控
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/status');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled) return;
+        setStatus(data);
+        if (data.status === 'finished') {
+          fetchResults();
+        }
+      } catch { /* 后端未就绪时忽略 */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const handleMove = async () => {
     if (!destination) return alert('请输入目标备份目录');
@@ -536,7 +614,21 @@ function App() {
       </aside>
 
       <main className="main-content" style={{ padding: 0, display: 'flex', flexDirection: 'column' }}>
-        {status.status === 'scanning' || status.status === 'clustering' ? (
+        {status.status === 'error' ? (
+          <div className="progress-overlay">
+            <div className="progress-card">
+              <h2 style={{ color: '#f87171' }}>出错了</h2>
+              <p style={{ color: '#e5e5e5', wordBreak: 'break-all', marginTop: '0.75rem' }}>{status.error || '未知错误'}</p>
+              <button
+                className="btn-primary"
+                style={{ marginTop: '1.5rem' }}
+                onClick={() => setStatus(prev => ({ ...prev, status: 'idle', error: '' }))}
+              >
+                返回
+              </button>
+            </div>
+          </div>
+        ) : status.status === 'scanning' || status.status === 'clustering' ? (
           <div className="progress-overlay">
             <div className="progress-card">
               <h2>{status.status === 'scanning' ? '分析中...' : '比对中...'}</h2>
