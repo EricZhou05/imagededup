@@ -1,4 +1,5 @@
 import os
+import shutil
 from pathlib import Path
 from PIL import Image
 from typing import Dict, Any
@@ -46,5 +47,5 @@ def move_file(source: str, destination_dir: str):
         dest_path = dest_dir / name
         counter += 1
         
-    src_path.rename(dest_path)
+    shutil.move(str(src_path), str(dest_path))
     return str(dest_path)
