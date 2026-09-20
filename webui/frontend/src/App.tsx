@@ -170,11 +170,12 @@ function App() {
   const [deletes, setDeletes] = useState<Record<number, string[]>>({}); // clusterId -> deletePaths[]
   const [destination, setDestination] = useState(savedConfig.destination ?? '');
 
-  // 当目录改变时，自动填充备份目录（仅在用户未手动填写时）
   useEffect(() => {
-    const firstDir = directories.split('\n').filter(d => d.trim())[0];
+    const firstDir = directories.split('\n').map(d => d.trim()).filter(Boolean)[0];
     if (firstDir) {
-      setDestination(prev => prev || firstDir.trim() + '_dedup');
+      const cleanPath = firstDir.replace(/[\\/]+$/, '');
+      const defaultDest = `${cleanPath}_dedup`;
+      setDestination(prev => prev || defaultDest);
     }
   }, [directories]);
 
@@ -410,15 +411,21 @@ function App() {
     if (toMove.length === 0) return alert('没有需要移动的文件');
     if (!confirm(`确定移动 ${toMove.length} 个文件吗？`)) return;
     try {
-      await fetch('/api/move', {
+      const res = await fetch('/api/move', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ files: toMove, destination })
       });
-      alert('移动成功');
-      setResults([]);
-      setIsConfigExpanded(true);
-    } catch (e) { alert('移动失败'); }
+      const data = await res.json();
+      if (data.errors && data.errors.length > 0) {
+        const errorDetails = data.errors.map((e: any) => `${e.file}: ${e.error}`).slice(0, 3).join('\n');
+        alert(`部分或全部文件移动失败 (失败 ${data.errors.length} 个，成功 ${data.moved?.length || 0} 个):\n${errorDetails}`);
+      } else {
+        alert(`成功移动 ${data.moved?.length || 0} 个文件`);
+        setResults([]);
+        setIsConfigExpanded(true);
+      }
+    } catch (e) { alert('移动请求失败，请检查网络或后端服务'); }
   };
 
   // 查找最小属性
