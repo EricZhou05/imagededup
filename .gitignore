@@ -20,3 +20,11 @@ dist-ssr/
 # System
 .DS_Store
 Thumbs.db
+
+# IDE & Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.omo/
