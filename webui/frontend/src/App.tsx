@@ -54,7 +54,6 @@ interface SavedConfig {
   recursive: boolean;
   ignoreSameDir: boolean;
   smartSelect: boolean;
-  destination: string;
 }
 
 function loadSavedConfig(): Partial<SavedConfig> {
@@ -168,14 +167,15 @@ function App() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [innerIndex, setInnerIndex] = useState(0); // 组内当前图片索引
   const [deletes, setDeletes] = useState<Record<number, string[]>>({}); // clusterId -> deletePaths[]
-  const [destination, setDestination] = useState(savedConfig.destination ?? '');
+  const [destination, setDestination] = useState('');
 
   useEffect(() => {
     const firstDir = directories.split('\n').map(d => d.trim()).filter(Boolean)[0];
     if (firstDir) {
       const cleanPath = firstDir.replace(/[\\/]+$/, '');
-      const defaultDest = `${cleanPath}_dedup`;
-      setDestination(prev => prev || defaultDest);
+      setDestination(`${cleanPath}_dedup`);
+    } else {
+      setDestination('');
     }
   }, [directories]);
 
@@ -183,10 +183,10 @@ function App() {
   useEffect(() => {
     try {
       localStorage.setItem(CONFIG_KEY, JSON.stringify({
-        directories, method, hashSize, threshold, recursive, ignoreSameDir, smartSelect, destination
+        directories, method, hashSize, threshold, recursive, ignoreSameDir, smartSelect
       }));
     } catch { /* localStorage 不可用时静默失败 */ }
-  }, [directories, method, hashSize, threshold, recursive, ignoreSameDir, smartSelect, destination]);
+  }, [directories, method, hashSize, threshold, recursive, ignoreSameDir, smartSelect]);
   
   // 缩放状态
   const [transform, setTransform] = useState({ scale: 1, offset: { x: 0, y: 0 } });
